@@ -16,7 +16,7 @@ from EdgeRF import learn_and_predict_rf_from_gt
 
 from defect_handling import defects_to_nodes_from_slice_list, find_matching_indices, modified_adjacency
 
-RandomForest = vigra.learning.RandomForest3
+RandomForest = vigra.learning.RandomForest
 
 
 # TODO this is quite the bottleneck, speed up !

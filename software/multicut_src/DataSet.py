@@ -186,7 +186,7 @@ class DataSet(object):
                     start_label = 1,
                     keep_zeros = True)
         else:
-            seg, _, _ = vigra.analysis.relabelConsecutive(seg.astype('uint32'), start_label = 0, keep_zeros = False)
+            seg, _, _ = vigra.analysis.relabelConsecutive(seg.astype('uint32'), start_label = 0)
         save_path = os.path.join(self.cache_folder, "seg" + str(self.n_seg) + ".h5")
         vigra.writeHDF5(seg, save_path, "data", compression = self.compression)
         self.n_seg += 1
@@ -387,7 +387,7 @@ class DataSet(object):
 
         assert anisotropy_factor >= 1., "Finer resolution in z-direction is not supported"
         print "Calculating filters for input id:", inp_id
-        import fastfilters
+        # import fastfilters
 
         # FIXME dirty hack to calculate features on the ditance trafo
         # FIXME the dt must be pre-computed for this to work
@@ -424,7 +424,7 @@ class DataSet(object):
             print "Using vigra filters instead."
             filter_names = [".".join( ("vigra.filters", filtname) ) for filtname in filter_names]
         else:
-            filter_names = [".".join( ("fastfilters", filtname) ) for filtname in filter_names]
+            filter_names = [".".join( ("vigra.filters", filtname) ) for filtname in filter_names]
 
         # update the filter folder to the input
         filter_folder = os.path.join( filter_folder, input_name )
@@ -537,11 +537,11 @@ class DataSet(object):
         assert inp_id < self.n_inp, str(inp_id) + " , " + str(self.n_inp)
         assert anisotropy_factor >= 20., "Affinity map features only for 2d filters."
 
-        import fastfilters
+        # import fastfilters
 
-        filter_names = [ "fastfilters.gaussianSmoothing",
-                         "fastfilters.hessianOfGaussianEigenvalues",
-                         "fastfilters.laplacianOfGaussian"]
+        filter_names = [ "gaussianSmoothing",
+                         "hessianOfGaussianEigenvalues",
+                         "laplacianOfGaussian"]
         sigmas = [1.6, 4.2, 8.3]
 
         #inp = self.inp(inp_id)

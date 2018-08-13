@@ -42,7 +42,7 @@ def probs_to_energies(ds, edge_probs, seg_id, exp_params, feat_cache):
 
     if exp_params.weighting_scheme in ("z", "xyz", "all"):
         edge_areas       = ds._rag(seg_id).edgeLengths()
-        edge_indications = ds.edge_indications(seg_id)
+        # edge_indications = ds.edge_indications(seg_id)
 
     # weight edges
     if exp_params.weighting_scheme == "z":
@@ -113,7 +113,7 @@ def weight_all_edges(ds, edge_energies, seg_id, edge_areas, weight):
 
     area_max = float( np.max( edge_areas ) )
     w = weight * edge_areas / area_max
-    energies_return = np.multiply(w, edge_energies)
+    energies_return = np.multiply(w, edge_energies[:, 0])
 
     return energies_return
 

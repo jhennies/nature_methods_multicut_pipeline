@@ -11,7 +11,10 @@ from defect_handling import get_skip_edges, modified_adjacency, get_skip_ranges,
 from ExperimentSettings import ExperimentSettings
 from Tools import edges_to_volume, edges_to_volume_from_uvs_in_plane, edges_to_volume_from_uvs_between_plane, edges_to_volumes_for_skip_edges
 
-RandomForest = vigra.learning.RandomForest3
+from sklearn.ensemble import RandomForestClassifier
+
+# RandomForest = vigra.learning.RandomForest
+RandomForest = RandomForestClassifier
 
 # toplevel convenience function for features
 # aggregates all the features given in feature list:
@@ -293,9 +296,11 @@ def learn_rf(cache_folder,
     assert all( np.unique(labels_train) == np.array([0, 1]) ), "Unique labels: " + str(np.unique(labels_train))
 
     print "Start learning random forest"
-    rf = RandomForest(features_train.astype('float32'), labels_train,
-        treeCount = exp_params.n_trees,
-        n_threads = exp_params.n_threads)
+    # rf = RandomForest(features_train.astype('float32'), labels_train,
+    #     treeCount = exp_params.n_trees,
+    #     n_threads = exp_params.n_threads)
+    rf = RandomForest(n_estimators=exp_params.n_trees, n_jobs=exp_params.n_threads)
+    rf.fit(features_train.astype('float32'), labels_train)
 
     if with_defects:
         print "Start learning defect random forest"
@@ -306,10 +311,10 @@ def learn_rf(cache_folder,
             n_threads=exp_params.n_threads
             )
 
-    if cache_folder is not None:
-        rf.writeHDF5(rf_path, 'rf')
-        if with_defects:
-            rf_defects.writeHDF5(rf_path, 'rf_defects')
+    # if cache_folder is not None:
+    #     rf.writeHDF5(rf_path, 'rf')
+    #     if with_defects:
+    #         rf_defects.writeHDF5(rf_path, 'rf_defects')
 
     if with_defects:
         return rf, rf_defects
@@ -412,8 +417,9 @@ def learn_and_predict_rf_from_gt(
 
     # predict
     print "Start predicting random forest"
-    pmem_test = rf.predictProbabilities( features_test.astype('float32'),
-        n_threads = exp_params.n_threads)[:,1]
+    # pmem_test = rf.predictProbabilities( features_test.astype('float32'),
+    #     n_threads = exp_params.n_threads)[:,1]
+    pmem_test = rf.predict_proba(features_test.astype('float32'))
 
     if with_defects and ds_test.defect_slices:
         print "Start predicting defect random forest"
@@ -422,7 +428,7 @@ def learn_and_predict_rf_from_gt(
         pmem_test = np.concatenate([pmem_test, pmem_skip])
 
     # normalize by the number of trees and remove nans
-    pmem_test /= rf.treeCount()
+    # pmem_test /= rf.treeCount()
     pmem_test[np.isnan(pmem_test)] = .5
     pmem_test[np.isinf(pmem_test)] = .5
     assert pmem_test.max() <= 1.
