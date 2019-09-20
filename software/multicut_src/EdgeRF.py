@@ -579,7 +579,9 @@ def learn_and_predict_rf_from_gt(
         str(ExperimentSettings().positive_threshold), str(ExperimentSettings().use_2d),
         str(ExperimentSettings().use_ignore_mask), str(with_defects), str(use_2rfs)] )
     teststr  = ds_test.ds_name + "_" + str(seg_id_test)
-    trainstr = "_".join([ds.ds_name for ds in trainsets ]) + "_" + str(seg_id_train)
+    # trainstr = "_".join([ds.ds_name for ds in trainsets ]) + "_" + str(seg_id_train)
+    # trainstr = 'rf_{}_{}'.format(trainsets[0].ds_name, seg_id_train)
+    trainstr = "_".join([ds.ds_name[6:10] for ds in trainsets]) + "_" + str(seg_id_train)
 
     # we cache this in the ds_test cache folder
     # if caching random forests is activated (== rf_cache_folder is not None)

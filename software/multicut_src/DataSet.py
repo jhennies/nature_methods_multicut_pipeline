@@ -416,7 +416,9 @@ class DataSet(object):
 
     # FIXME: Doesn't work for internal paths as key (e.g., key = 'a/b/data')
     def _check_input(self, path, key):
-        assert os.path.exists(path), path
+        # assert os.path.exists(path), path
+        if not os.path.exists(path):
+            raise IOError
     #     with h5py.File(path) as f:
     #         assert key in f.keys(), "%s, %s" % (key, f.keys())
 
@@ -520,7 +522,7 @@ class DataSet(object):
         self.save()
 
     def seg(self, seg_id):
-        assert seg_id < self.n_seg, "Trying to read seg_id %i but there are only %i segmentations" % (seg_ind, self.n_seg)
+        assert seg_id < self.n_seg, "Trying to read seg_id %i but there are only %i segmentations" % (seg_id, self.n_seg)
         internal_seg_path = os.path.join(self.cache_folder,"seg%i.h5" % seg_id)
         if os.path.exists(internal_seg_path):
             return vigra.readHDF5(internal_seg_path, "data")

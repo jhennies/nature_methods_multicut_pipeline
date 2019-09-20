@@ -50,6 +50,7 @@ def probs_to_energies(
 
     if weighting_scheme in ("z", "xyz", "all"):
         edge_areas       = ds._rag(seg_id).edgeLengths()
+    if weighting_scheme in ("z", "xyz"):
         edge_indications = ds.edge_indications(seg_id)
 
     # weight edges
