@@ -146,6 +146,47 @@ def multicut_workflow_with_defect_correction(
     return run_mc_solver(n_var, uv_ids, edge_energies)
 
 
+def compute_node_classes(ds, map_id):
+
+    print('Computing node classes...')
+    inp = ds.inp(map_id).astype('uint8')
+    minlength = inp.max() + 1
+
+    if not os.path.exists(os.path.join(ds.cache_folder, 'node_classes.h5')):
+
+        seg = ds.seg(0).copy()
+
+        node_features = [
+            np.bincount(inp[seg == idx], minlength=minlength)
+            for idx in np.unique(seg)
+        ]
+
+        node_features = np.array(node_features)
+        print(node_features.shape)
+
+        print('Writing node classes to {}'.format(os.path.join(ds.cache_folder, 'node_classes.h5')))
+        vigra.writeHDF5(node_features, os.path.join(ds.cache_folder, 'node_classes.h5'), 'data')
+
+    else:
+        print('Loading node classes from {}'.format(os.path.join(ds.cache_folder, 'node_classes.h5')))
+        node_features = vigra.readHDF5(os.path.join(ds.cache_folder, 'node_classes.h5'), 'data')
+
+    return node_features, minlength
+
+
+def similarities(uvs, node_features, minlength):
+
+    fU = np.array(node_features)[uvs[:, 0], :]
+    fV = np.array(node_features)[uvs[:, 1], :]
+
+    fUn = fU.astype('float32') / np.repeat(fU.sum(axis=1)[:, None], minlength, axis=1)
+    fVn = fV.astype('float32') / np.repeat(fV.sum(axis=1)[:, None], minlength, axis=1)
+
+    f_abs = 1 - np.abs(fUn - fVn).sum(axis=1) / 2
+
+    return f_abs
+
+
 # lifted multicut on the test dataset, weights learned with a rf on the train dataset
 def lifted_multicut_workflow(
         trainsets,
@@ -156,7 +197,9 @@ def lifted_multicut_workflow(
         feature_list_lifted,
         gamma = 1.,
         warmstart = False,
-        weight_z_lifted = True):
+        weight_z_lifted = True,
+        similarities_from_semantics=None
+):
 
     assert isinstance(ds_test, DataSet)
     assert isinstance(trainsets, DataSet) or isinstance(trainsets, list)
@@ -188,6 +231,18 @@ def lifted_multicut_workflow(
             with_defects = False,
             use_2rfs = ExperimentSettings().use_2rfs)
 
+    # TODO Compute similarities for the uvs from a cnn object prediction
+    uvs_local = ds_test._adjacent_segments(seg_id_test)
+    if similarities_from_semantics is not None:
+        node_classes, minlength = compute_node_classes(ds_test, 2)
+        if similarities_from_semantics == 'all' or similarities_from_semantics == 'local':
+            sims_local = similarities(uvs_local, node_classes, minlength)
+            pTestLocal[sims_local < 0.5] = 1 - ((1 - pTestLocal[sims_local < 0.5]) * 2 * sims_local[sims_local < 0.5])
+        if similarities_from_semantics == 'all' or similarities_from_semantics == 'lifted':
+            sims_lifted = similarities(uv_ids_lifted, node_classes, minlength)
+            pTestLifted[sims_lifted < 0.5] = 1 - ((1 - pTestLifted[sims_lifted < 0.5]) * 2 * sims_lifted[sims_lifted < 0.5])
+
+
     feat_str = _get_feat_str(feature_list_local)
     # energies for the multicut
     edge_energies_local = probs_to_energies(
@@ -213,7 +268,6 @@ def lifted_multicut_workflow(
     # weighting edges with their length for proper lifted to local scaling
     edge_energies_local  /= edge_energies_local.shape[0]
     edge_energies_lifted /= edge_energies_lifted.shape[0]
-    uvs_local = ds_test._adjacent_segments(seg_id_test)
 
     #vigra.writeHDF5(edge_energies_local, './costs_local.h5', 'data')
     #vigra.writeHDF5(edge_energies_lifted, './costs_lifted.h5', 'data')

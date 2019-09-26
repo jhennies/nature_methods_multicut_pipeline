@@ -1091,6 +1091,7 @@ class DataSet(object):
         return vigra.readHDF5(save_file,"edge_features_names")
 
 
+
     # get region statistics with the vigra region feature extractor
     @cacher_hdf5(folder = "feature_folder")
     def _region_statistics(self, seg_id, inp_id):
@@ -1128,6 +1129,32 @@ class DataSet(object):
         vigra.writeHDF5(reg_stat_names, save_path, "region_statistics_names")
         vigra.writeHDF5(node_features[:,n_stat_feats:], save_path, "region_centers")
         vigra.writeHDF5(reg_center_names, save_path, "region_center_names")
+
+        return statistics
+
+
+    # get region statistics with the vigra region feature extractor
+    @cacher_hdf5(folder = "feature_folder")
+    def _region_classes(self, seg_id, inp_id):
+        assert seg_id < self.n_seg, str(seg_id) + " , " + str(self.n_seg)
+        assert inp_id < self.n_inp, str(inp_id) + " , " + str(self.n_inp)
+
+        # list of the region statistics, that we want to extract
+        statistics = ["classes"]
+
+        seg = self.seg(seg_id)
+        inp = self.inp(inp_id).astype('uint8')
+
+        node_features = [
+            [np.bincount(inp[seg == idx]).argmax()]
+            for idx in np.unique(seg)
+        ]
+
+        node_features = np.array(node_features)
+
+        save_path = cache_name("_region_classes", "feature_folder", False, False, self, seg_id, inp_id)
+
+        vigra.writeHDF5(node_features, save_path, "classes")
 
         return statistics
 
@@ -1233,6 +1260,53 @@ class DataSet(object):
             "region_features_" + str(seg_id) + "_" + str(inp_id) + "_" + str(lifted_nh) + ".h5" )
         vigra.writeHDF5(feat_names, save_file, "region_features_names")
         print "writing feat_names to", save_file
+
+        return allFeat
+
+
+    # the argument 'with_defects' is needed for correctly caching the lmc features
+    @cacher_hdf5(folder = "feature_folder", ignoreNumpyArrays=True)
+    def region_labels_comparison(self, seg_id, inp_id, uv_ids, lifted_nh, with_defects = False):
+
+        import gc
+
+        if lifted_nh:
+            print "Computing region label comparison for NH:", lifted_nh
+        else:
+            print "Computing region label comparison for local Edges"
+
+        assert seg_id < self.n_seg, str(seg_id) + " , " + str(self.n_seg)
+        assert inp_id < self.n_inp, str(inp_id) + " , " + str(self.n_inp)
+
+        # make sure the region statistics are calcuulated
+        self._region_classes(seg_id, inp_id)
+        region_classes_path = cache_name("_region_classes", "feature_folder", False, False, self, seg_id, inp_id)
+
+        # if we have a segmentation mask, we don't calculate features for uv-ids which
+        # include 0 (== everything outside of the mask)
+        # otherwise the ram consumption for the lmc can blow up...
+        if self.has_seg_mask:
+            where_uv = (uv_ids != ExperimentSettings().ignore_seg_value).all(axis = 1)
+            # for lifted edges assert that no ignore segments are in lifted uvs
+            if lifted_nh:
+                assert np.sum(where_uv) == where_uv.size
+            else:
+                uv_ids = uv_ids[where_uv]
+
+        # compute feature from region statistics
+        reg_classes = vigra.readHDF5(region_classes_path, 'classes')
+
+        fU = reg_classes[uv_ids[:, 0], :]
+        fV = reg_classes[uv_ids[:, 1], :]
+
+        allFeat = [
+            1 - np.logical_xor(fU, fV).astype('uint8')
+        ]
+
+        allFeat = np.nan_to_num(
+                np.concatenate(allFeat, axis = 1) )
+
+        assert allFeat.shape[0] == uv_ids.shape[0]
 
         return allFeat
 

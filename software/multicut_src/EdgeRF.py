@@ -136,7 +136,7 @@ def local_feature_aggregator(ds,
     assert seg_id < ds.n_seg, str(seg_id) + " , " + str(ds.n_seg)
     assert anisotropy_factor >= 1., "Finer resolution in z-direction is not supported"
     for feat in feature_list:
-        assert feat in ("raw", "prob", "affinities", "extra_input", "reg", "topo"), feat
+        assert feat in ("raw", "prob", "affinities", "extra_input", "reg", "topo", "extra_reg"), feat
     features = []
     if "raw" in feature_list:
         features.append(
@@ -150,10 +150,14 @@ def local_feature_aggregator(ds,
     if "extra_input" in feature_list:
         features.append(
                 ds.edge_features(seg_id, 2, anisotropy_factor ))
+    if "extra_reg" in feature_list:
+        features.append(
+            ds.region_labels_comparison(seg_id, 2, ds._adjacent_segments(seg_id), False)
+        )
     if "reg" in feature_list:
         features.append(
-                ds.region_features(seg_id, 0,
-            ds._adjacent_segments(seg_id), False ) )
+            ds.region_features(seg_id, 0, ds._adjacent_segments(seg_id), False )
+        )
     if "topo" in feature_list:
         features.append(
                 ds.topology_features(seg_id, use_2d ))
